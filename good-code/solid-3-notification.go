@@ -153,7 +153,60 @@ type NotificationService struct {
 	formatter    MessageFormatter
 }
 
-func (n *NotificationService) Send(ctx NotificationContext, retryCount int) error {
+type RetrySender struct {
+	Wrapped    NotificationSender
+	RetryCount int
+}
+
+type LoggingSender struct {
+	logger NotificationSender
+}
+
+func (l *LoggingSender) Send(ctx NotificationContext) error {
+	fmt.Println("Sending notification")
+	err := l.logger.Send(ctx)
+	return err
+}
+
+func (l *LoggingSender) SupportsAttachment() bool {
+	if supporter, ok := l.logger.(AttachmentSupporter); ok {
+		return supporter.SupportsAttachment()
+	}
+	return false
+}
+
+func (r *RetrySender) Send(ctx NotificationContext) error {
+	var err error
+	for i := 0; i <= r.RetryCount; i++ {
+		err = r.Wrapped.Send(ctx)
+		if err == nil {
+			return nil
+		}
+	}
+	return err
+}
+
+func (r *RetrySender) SupportsAttachment() bool {
+	if supporter, ok := r.Wrapped.(AttachmentSupporter); ok {
+		return supporter.SupportsAttachment()
+	}
+	return false
+}
+
+func NewRetrySender(sender NotificationSender, retryCount int) NotificationSender {
+	return &RetrySender{
+		Wrapped:    sender,
+		RetryCount: retryCount,
+	}
+}
+
+func NewLoggingSender(sender NotificationSender) NotificationSender {
+	return &LoggingSender{
+		logger: sender,
+	}
+}
+
+func (n *NotificationService) Send(ctx NotificationContext) error {
 
 	if ctx.AttachmentPath != "" {
 		if _, ok := n.notification.(AttachmentSupporter); !ok {
@@ -167,10 +220,6 @@ func (n *NotificationService) Send(ctx NotificationContext, retryCount int) erro
 
 	err := n.notification.Send(ctx)
 
-	if err != nil && retryCount > 0 {
-		return n.Send(ctx, retryCount-1)
-	}
-
 	return err
 }
 
@@ -181,12 +230,14 @@ func main() {
 		BaseURl: "https://chan.com",
 	}
 	notificationSender, err := NotificationFactory(EMAIL, config)
+	wrapper := NewRetrySender(notificationSender, 0)
+	loggingSender := NewLoggingSender(wrapper)
 	if err != nil {
 		panic(err)
 	}
 
 	notificationService := NotificationService{
-		notification: notificationSender,
+		notification: loggingSender,
 		formatter:    messageFormatter,
 	}
 
@@ -196,8 +247,6 @@ func main() {
 		Priority:       HIGH,
 		AttachmentPath: "../../path.txt",
 	}
-	var retryCount = 10
 
-	notificationService.Send(context, retryCount)
-
+	notificationService.Send(context)
 }
