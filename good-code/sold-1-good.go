@@ -44,10 +44,10 @@ type Notifier interface {
 	Notify()
 }
 
-type EmailNotification struct {
+type EmailNotification1 struct {
 }
 
-func (en *EmailNotification) Notify() {
+func (e *EmailNotification) Notify() {
 	fmt.Println("sending notification")
 }
 
