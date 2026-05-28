@@ -1,7 +1,5 @@
 package main
 
-import "fmt"
-
 const (
 	Monday = iota
 	Tuesday
@@ -10,10 +8,10 @@ const (
 	Thursday
 )
 
-func main() {
-
-	fmt.Println(Monday)
-	fmt.Println(Tuesday)
-	fmt.Println(Wednesday)
-	fmt.Println(Friday)
-}
+//func main() {
+//
+//	fmt.Println(Monday)
+//	fmt.Println(Tuesday)
+//	fmt.Println(Wednesday)
+//	fmt.Println(Friday)
+//}
